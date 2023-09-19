@@ -6,15 +6,33 @@ from fileinput import filename
 from tkinter.filedialog import askopenfilename
 import os
 
+from Operaciones import *
+from Abstract.lexema import *
+from Abstract.numeros import *
+
+DicErrores = {
+    "errores":[]   
+}
+
 ebg = '#000000'
 fg = '#FFFFFF'
 global nombre_archivo
 global opciones
 global abrio
+global linea
 nombre_archivo = ""
 abrio = False
 global TxtArchivo
+global numero_Lin
+global numero_Col
+global Instruc
+global lista_Lexemas
 ventana = tk.Tk()
+
+numero_Lin = 1
+numero_Col = 1
+Lista_Lexemas = []
+Instruc = []
 
 def Vista():
     global TxtArchivo
@@ -44,7 +62,7 @@ def Vista():
     opciones.place(x = 420, y = 10, width = 100, height = 30)
     opciones.current(0)
     
-    BtnAnalizar = tk.Button(ventana, text = "Analizar", bg = "black", fg = "white")
+    BtnAnalizar = tk.Button(ventana, text = "Analizar", bg = "black", fg = "white", command = ejecutar)
     BtnAnalizar.place(x = 30, y = 10, width = 100, height = 30)
     
     BtnErrores = tk.Button(ventana, text = "Errores", bg = "black", fg = "white")
@@ -71,6 +89,7 @@ def Opciones():
     global TxtArchivo
     global nombre_archivo
     global abrio
+    global linea
     
     if opciones.get() == "Abrir":
         
@@ -131,5 +150,203 @@ def Opciones():
     if opciones.get() == "Salir":
         
         exit()
-           
+
+def Instruccion(archivo):
+    
+    global numero_Lin
+    global numero_Col
+    global Lista_Lexemas
+    apuntador = 0
+    lexema = ''
+    
+    while archivo:
+        
+        char = archivo[apuntador]
+        apuntador += 1
+        
+        if char == '\"':
+            
+            lexema, archivo = Crear_lexema(archivo[apuntador:])
+            
+            if lexema and archivo:
+                
+                numero_Col += 1
+                
+                l = Lexema(lexema, numero_Lin, numero_Col)
+                
+                Lista_Lexemas.append(l)
+                numero_Col += len(lexema) + 1
+                apuntador = 0
+         
+        elif char.isdigit():
+            
+            token, archivo = Crear_numero(archivo)
+            
+            if token and archivo:
+                numero_Col += 1
+                
+                n = Numero(token, numero_Lin, numero_Col)
+                
+                Lista_Lexemas.append(n)
+                numero_Col += len(str(token)) + 1
+                apuntador = 0
+        
+        elif char == '[' or char == ']':
+            
+            c = Lexema(char, numero_Lin,numero_Col)
+            
+            Lista_Lexemas.append(c)
+            archivo = archivo[1:]
+            apuntador = 0
+            numero_Col += 1
+        
+        elif char == '\t':
+            numero_Col +=4
+            archivo = archivo[4:]
+            apuntador = 0
+        
+        elif char == '\n':
+            archivo = archivo[1:]
+            apuntador = 0
+            numero_Lin += 1
+            numero_Col = 1
+        else:
+            archivo = archivo[1:]
+            apuntador = 0
+            numero_Col += 1
+    
+    for lexema in Lista_Lexemas:
+        print(lexema)
+
+def Crear_lexema(archivo):
+    
+    global numero_Lin
+    global numero_Col
+    global Lista_Lexemas
+    apuntador = ''
+    lexema = ''
+    
+    for char in archivo:
+        
+        apuntador += char
+        
+        if char == '\"':
+            return lexema, archivo[len(apuntador):]
+        
+        else:
+            
+            lexema += char 
+    
+    return None, None     
+        
+def ejecutar():
+    global linea
+    
+    Instruccion(linea)
+    Realizar_OperR()
+
+def Crear_numero(archivo):
+    
+    numero =''
+    apuntador = ''
+    decimal = False
+    
+    for char in archivo:
+        
+        apuntador += char
+        
+        if char == '.':
+            
+            decimal = True
+        
+        if char == '\"' or char == ' ' or char == '\n' or char == '\t' or char == ",":
+            
+            if decimal:
+                
+                return float(numero), archivo[len(apuntador)-1:]
+            else:
+                
+                return int(numero), archivo[len(apuntador)-1:]
+        
+        else:
+            
+            numero += char   
+    
+    return None, None
+
+def operar():
+    
+    global Lista_Lexemas
+    global Instruc
+    operacion = ''
+    n1 = ''
+    n2 = ''
+    hacer = ""
+    valorn1 = ""
+    valorn2 = ""
+    tipooper = ""
+    
+    while Lista_Lexemas:
+        
+        lex = Lista_Lexemas.pop(0)
+        
+        hacer = lex.operar(None)
+        
+        if hacer == ('operacion' or 'Operacion'):
+            
+            operacion = Lista_Lexemas.pop(0)
+            tipooper = operacion.operar(None)
+        
+        elif hacer == ('valor1' or 'Valor1'):
+            
+            n1 = Lista_Lexemas.pop(0)
+            valorn1 = n1.operar(None)
+            
+            if valorn1 == '[':
+                n1 = operar()
+        
+        elif hacer == ('valor2' or 'Valor2'):
+            
+            n2 = Lista_Lexemas.pop(0)
+            valorn2 = n2.operar(None)
+            
+            if valorn2 == '[':
+                n2 = operar()
+        
+        
+        
+        if operacion and n1 and n2:
+            return aritmeticas.Aritmetica(n1, n2, operacion, f'Inicio: {operacion.getFila()}:{operacion.getColumna()}', f'Fin: {n2.getFila()}:{n2.getColumna()}')
+        
+        if operacion != '':
+            
+            if tipooper == 'Seno' or tipooper == 'seno' or tipooper == 'Coseno' or tipooper == 'coseno' or tipooper == 'Tangente' or tipooper == 'tangente':
+            
+                if n1 != '':
+                
+                    return trigonometricas.Trigonometrica(n1, operacion, f'Inicio: {operacion.getFila()}:{operacion.getColumna()}', f'Fin: {n1.getFila()}:{n1.getColumna()}')
+    
+    return None
+            
+def Realizar_OperR():
+    
+    global Instruc
+    
+    while True:
+        
+        operacion = operar()
+        
+        if operacion:
+            
+            Instruc.append(operacion)
+            
+            print("Realizo la operacion")
+            
+        else:
+            break
+    
+    for instruccion in Instruc:
+        print(instruccion.operar(None))
+        
+            
 Vista()
