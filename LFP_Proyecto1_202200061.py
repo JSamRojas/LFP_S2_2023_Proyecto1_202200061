@@ -5,13 +5,25 @@ import tkinter as tk
 from fileinput import filename
 from tkinter.filedialog import askopenfilename
 import os
+import json
+from collections import namedtuple
 
 from Operaciones import *
-from Abstract.lexema import *
-from Abstract.numeros import *
+from Abstract import *
+from Graficas.Arbol import *
+
+Tokens = namedtuple("Token", ["valor","fila","columna"])
 
 DicErrores = {
     "errores":[]   
+}
+
+configuracion = {
+    
+    "texto": None,
+    "fondo": None,
+    "fuente": None,
+    "forma": None,
 }
 
 ebg = '#000000'
@@ -27,12 +39,19 @@ global numero_Lin
 global numero_Col
 global Instruc
 global lista_Lexemas
+global ContaErrores
+global GenerarErrores
+global GenerarGrafo
 ventana = tk.Tk()
 
 numero_Lin = 1
 numero_Col = 1
 Lista_Lexemas = []
 Instruc = []
+ContaErrores = 0
+GenerarErrores = 0
+GenerarGrafo = 0
+linea = ""
 
 def Vista():
     global TxtArchivo
@@ -65,10 +84,10 @@ def Vista():
     BtnAnalizar = tk.Button(ventana, text = "Analizar", bg = "black", fg = "white", command = ejecutar)
     BtnAnalizar.place(x = 30, y = 10, width = 100, height = 30)
     
-    BtnErrores = tk.Button(ventana, text = "Errores", bg = "black", fg = "white")
+    BtnErrores = tk.Button(ventana, text = "Errores", bg = "black", fg = "white", command = JSONErrores)
     BtnErrores.place(x = 160, y = 10, width = 100, height = 30)
     
-    BtnReporte = tk.Button(ventana, text = "Reporte", bg = "black", fg = "white")
+    BtnReporte = tk.Button(ventana, text = "Reporte", bg = "black", fg = "white", command = Crear_Grafo)
     BtnReporte.place(x = 290, y = 10, width = 100, height = 30)
     
     BtnOpciones = tk.Button(ventana, text = "Seleccionar", bg = "blue", fg = "white", command = Opciones)
@@ -85,11 +104,14 @@ def Vista():
     ventana.mainloop()
 
 def Opciones():
+    
     global opciones
     global TxtArchivo
     global nombre_archivo
     global abrio
     global linea
+    global GenerarGrafo
+    global GenerarErrores
     
     if opciones.get() == "Abrir":
         
@@ -112,7 +134,11 @@ def Opciones():
         
         TxtArchivo.delete(1.0,41.0)
         TxtArchivo.insert(1.0,linea)
-        abrio == True
+        
+        abrio = True
+        GenerarGrafo = 0
+        GenerarErrores = 0
+        
     
     if opciones.get() == "Guardar":
         
@@ -121,6 +147,7 @@ def Opciones():
         f = open(nombre_archivo,"w")
         f.write(TxtArchivo.get(1.0,tk.END))
         f.close()
+        linea = TxtArchivo.get(1.0,tk.END)
         messagebox.showinfo(message = "Archivo guardado con exito", title = "Analizador Lexico")
         
        else:
@@ -141,6 +168,7 @@ def Opciones():
             f = open(nombreComo,"w")
             f.write(TxtArchivo.get(1.0,tk.END))
             f.close()
+            linea = TxtArchivo.get(1.0,tk.END)
             messagebox.showinfo(message = "Archivo guardado con exito", title = "Analizador Lexico")
         
         else:
@@ -156,8 +184,12 @@ def Instruccion(archivo):
     global numero_Lin
     global numero_Col
     global Lista_Lexemas
+    global ContaErrores
     apuntador = 0
     lexema = ''
+    
+    numero_Col = 1
+    numero_Lin = 1
     
     while archivo:
         
@@ -172,7 +204,7 @@ def Instruccion(archivo):
                 
                 numero_Col += 1
                 
-                l = Lexema(lexema, numero_Lin, numero_Col)
+                l = Tokens(lexema, numero_Lin, numero_Col)
                 
                 Lista_Lexemas.append(l)
                 numero_Col += len(lexema) + 1
@@ -185,15 +217,15 @@ def Instruccion(archivo):
             if token and archivo:
                 numero_Col += 1
                 
-                n = Numero(token, numero_Lin, numero_Col)
+                n = Tokens(token, numero_Lin, numero_Col)
                 
                 Lista_Lexemas.append(n)
                 numero_Col += len(str(token)) + 1
                 apuntador = 0
         
-        elif char == '[' or char == ']':
+        elif char in ["{", "}", "[", "]", ",", ":"]:
             
-            c = Lexema(char, numero_Lin,numero_Col)
+            c = Tokens(char, numero_Lin,numero_Col)
             
             Lista_Lexemas.append(c)
             archivo = archivo[1:]
@@ -210,19 +242,40 @@ def Instruccion(archivo):
             apuntador = 0
             numero_Lin += 1
             numero_Col = 1
+        
+        elif char == " ":
+            
+            archivo = archivo[1:]
+            numero_Col += 1
+            apuntador = 0
+            
         else:
+            
+            ContaErrores +=1
+            
+            DicErrores["errores"].append({
+                
+                "No.": ContaErrores,   
+                "lexema": char,
+                "tipo": "Error lexico",
+                "columna": numero_Col,
+                "fila": numero_Lin
+            })
+                        
             archivo = archivo[1:]
             apuntador = 0
             numero_Col += 1
-    
-    for lexema in Lista_Lexemas:
-        print(lexema)
+        
+   # for lexema in Lista_Lexemas:
+    #    print(lexema)
 
 def Crear_lexema(archivo):
     
     global numero_Lin
     global numero_Col
     global Lista_Lexemas
+    global ContaErrores
+    Columna_Temp = numero_Col
     apuntador = ''
     lexema = ''
     
@@ -231,19 +284,57 @@ def Crear_lexema(archivo):
         apuntador += char
         
         if char == '\"':
+            
             return lexema, archivo[len(apuntador):]
         
         else:
             
-            lexema += char 
-    
+            if Errores_entre_Lexemas(char) == 0:
+            
+                lexema += char
+                Columna_Temp += 1
+            
+            elif Errores_entre_Lexemas(char) == 1:
+                
+                Columna_Temp += 1
+            
+            elif Errores_entre_Lexemas(char) == 2:
+                
+                Columna_Temp += 1
+                
+                ContaErrores +=1
+                
+                DicErrores["errores"].append({
+                        
+                        "No.": ContaErrores,   
+                        "lexema": char,
+                        "tipo": "Error lexico",
+                        "columna": Columna_Temp,
+                        "fila": numero_Lin
+                    })
+                
     return None, None     
         
 def ejecutar():
-    global linea
     
-    Instruccion(linea)
-    Realizar_OperR()
+    global GenerarErrores
+    global GenerarGrafo
+    
+    global linea
+    if linea == "":
+    
+        messagebox.showerror(message = "No puede analizar el archivo, sin haberlo cargado", title = "Error")
+    
+    else:
+        Instruccion(linea)
+        grafo.dot.clear()
+        grafo.Configurar(configuracion)
+        Realizar_OperR()
+        
+        GenerarGrafo = 1
+        GenerarErrores = 1
+        
+        return grafo
 
 def Crear_numero(archivo):
     
@@ -264,6 +355,7 @@ def Crear_numero(archivo):
             if decimal:
                 
                 return float(numero), archivo[len(apuntador)-1:]
+            
             else:
                 
                 return int(numero), archivo[len(apuntador)-1:]
@@ -281,56 +373,54 @@ def operar():
     operacion = ''
     n1 = ''
     n2 = ''
-    hacer = ""
-    valorn1 = ""
-    valorn2 = ""
-    tipooper = ""
     
     while Lista_Lexemas:
         
         lex = Lista_Lexemas.pop(0)
         
-        hacer = lex.operar(None)
+        if lex.valor == ('operacion' or 'Operacion'):
+            
+            Lista_Lexemas.pop(0)
+            operacion = Lista_Lexemas.pop(0).valor
         
-        if hacer == ('operacion' or 'Operacion'):
+        elif lex.valor == ('valor1' or 'Valor1'):
             
-            operacion = Lista_Lexemas.pop(0)
-            tipooper = operacion.operar(None)
-        
-        elif hacer == ('valor1' or 'Valor1'):
+            Lista_Lexemas.pop(0)
+            n1 = Lista_Lexemas.pop(0).valor
             
-            n1 = Lista_Lexemas.pop(0)
-            valorn1 = n1.operar(None)
-            
-            if valorn1 == '[':
+            if n1 == '[':
                 n1 = operar()
         
-        elif hacer == ('valor2' or 'Valor2'):
+        elif lex.valor == ('valor2' or 'Valor2'):
             
-            n2 = Lista_Lexemas.pop(0)
-            valorn2 = n2.operar(None)
+            Lista_Lexemas.pop(0)
+            n2 = Lista_Lexemas.pop(0).valor
             
-            if valorn2 == '[':
+            if n2 == '[':
                 n2 = operar()
         
-        
+        elif lex.valor in ["texto","fondo","fuente","forma"]:
+            
+            Lista_Lexemas.pop(0)
+            configuracion[lex.valor] = Lista_Lexemas.pop(0).valor
         
         if operacion and n1 and n2:
-            return aritmeticas.Aritmetica(n1, n2, operacion, f'Inicio: {operacion.getFila()}:{operacion.getColumna()}', f'Fin: {n2.getFila()}:{n2.getColumna()}')
+            return aritmeticas.Aritmetica(n1, n2, operacion,0,0)
         
         if operacion != '':
             
-            if tipooper == 'Seno' or tipooper == 'seno' or tipooper == 'Coseno' or tipooper == 'coseno' or tipooper == 'Tangente' or tipooper == 'tangente':
+            if operacion == 'Seno' or operacion == 'seno' or operacion == 'Coseno' or operacion == 'coseno' or operacion == 'Tangente' or operacion == 'tangente':
             
                 if n1 != '':
                 
-                    return trigonometricas.Trigonometrica(n1, operacion, f'Inicio: {operacion.getFila()}:{operacion.getColumna()}', f'Fin: {n1.getFila()}:{n1.getColumna()}')
+                    return trigonometricas.Trigonometrica(n1, operacion,0,0)
     
     return None
             
 def Realizar_OperR():
     
     global Instruc
+    global grafo
     
     while True:
         
@@ -340,13 +430,55 @@ def Realizar_OperR():
             
             Instruc.append(operacion)
             
-            print("Realizo la operacion")
-            
         else:
             break
+        
+    grafo.Configurar(configuracion)
     
     for instruccion in Instruc:
-        print(instruccion.operar(None))
         
-            
+        print(instruccion.operar())
+        
+def JSONErrores():
+    
+    global GenerarErrores
+    
+    if GenerarErrores == 1:
+    
+        with open("RESULTADOS_202200061.json", "w") as file:
+        
+            json.dump(DicErrores, file, indent = 4)
+            messagebox.showinfo(message = "Archivo de errores generado con exito", title = "Generar Errores")
+    
+    else:
+        
+        messagebox.showerror(message = "No puede generar el archivo de errores, debe analizar el archivo .json primero", title = "Error")
+
+def Crear_Grafo():
+    
+    global GenerarGrafo
+    
+    if GenerarGrafo == 1:
+    
+        grafo.generarGrafo()  
+        messagebox.showinfo(message = "Reporte realizado con exito!", title = "Generar Reporte")
+    
+    else:
+        
+        messagebox.showerror(message = "No se puede generar el Reporte, primero debe analizar el archivo .json", title = "Error")
+
+def Errores_entre_Lexemas(char):
+    
+    if (ord(char) >= 48 and ord(char) <= 57) or (ord(char) >= 65 and ord(char) <= 90) or (ord(char) >= 97 and ord(char) <= 122):
+        
+        return 0
+    
+    elif ord(char) == 58 or ord(char) == 44 or ord(char) == 91 or ord(char) == 93 or ord(char) == 123 or ord(char) == 125:
+        
+        return 1
+    
+    else:
+        
+        return 2
+          
 Vista()

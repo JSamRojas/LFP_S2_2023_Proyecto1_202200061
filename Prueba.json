@@ -1,21 +1,21 @@
 {
-    "operaciones":[
+    "operac_iones":[
         {
-            "operacion": "suma",
+           ! "operacion": "suma",
             "valor1": 4.5,
             "valor2": 5.32
         },
         {
             "operacion": "resta",
-            "valor1": 4.5,
+            "val&or1": 4.5,
             "valor2": [
                 {
                     "operacion":"potencia",
                     "valor1":10,
-                    "valor2":3
+                    "valo&r2":3
                 }
                 ]
-
+                                                #
         },
         {
             "operacion": "suma",
@@ -28,7 +28,7 @@
               "valor2":5.32
         },
         {
-            "operacion": "multiplicacion",
+            "operacion": "multiplicacion",%
             "valor1": 7,
             "valor2": 3
         },
@@ -37,14 +37,14 @@
             "valor1": 15,
             "valor2": 3
         }
-    
+                &
     ],
     "configuraciones":[
         {
             "texto":"Operaciones",
-            "fondo":"azul",
-            "fuente":"blanco",
-            "forma":"circulo"
+            "fondo":"blue",
+            "fuente":"white",
+            "forma":"circle"
     }
     ]
 

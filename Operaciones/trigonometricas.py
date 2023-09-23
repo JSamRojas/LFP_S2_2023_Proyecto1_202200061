@@ -1,33 +1,47 @@
 from Abstract.abstract import Expression
 from math import *
+from Graficas.Arbol import *
+
 class Trigonometrica(Expression):
     
     def __init__(self, izquierda, tipo, fila, columna):
         
         self.izquierda = izquierda
         self.tipo = tipo
-        
-        super().__init__(fila, columna)
+        self.fila = fila
+        self.columna = columna
     
-    def operar(self, arbol):
+    def operar(self):
         
-        ValorIzq = ''
+        ValorIzq = self.izquierda
         
-        if self.izquierda != None:
+        nodo = None
+        resultado = None
+        
+        if isinstance(self.izquierda, Expression):
             
-            ValorIzq = self.izquierda.operar(arbol)
-    
-        if self.tipo.operar(arbol) == ("seno" or "Seno"):
-            return sin(ValorIzq)
-        elif self.tipo.operar(arbol) == ('coseno' or 'Coseno'):
-            return cos(ValorIzq)
-        elif self.tipo.operar(arbol) == ('tangente' or 'Tangente'):
-            return tan(ValorIzq)
-        else:
-            return None
+            ValorIzq = self.izquierda.operar()
+            nodo = grafo.obtenerUltimoNodo()
         
-    def getFila(self):
-        return super().getFila()
+        else:
+            
+            ValorIzq = self.izquierda
+            nodo = grafo.agregarNodo(str(ValorIzq))
+            
     
-    def getColumna(self):
-        return super().getColumna()
+        if self.tipo == ("seno" or "Seno"):
+            
+            resultado = sin(ValorIzq)
+            
+        elif self.tipo == ('coseno' or 'Coseno'):
+            
+            resultado = cos(ValorIzq)
+            
+        elif self.tipo == ('tangente' or 'Tangente'):
+            
+            resultado = tan(ValorIzq)
+        
+        raiz = grafo.agregarNodo(f"{self.tipo}\\n{str(round(resultado,2))}")
+        grafo.agregarArista(raiz, nodo)
+        
+        return round(resultado,2)
