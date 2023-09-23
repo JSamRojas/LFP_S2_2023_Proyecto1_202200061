@@ -319,8 +319,15 @@ def ejecutar():
     
     global GenerarErrores
     global GenerarGrafo
+    global Lista_Lexemas
+    global Instruc
     
     global linea
+    
+    tokens = Tokens(None,None,None)
+    Lista_Lexemas.clear()
+    Instruc.clear()
+    
     if linea == "":
     
         messagebox.showerror(message = "No puede analizar el archivo, sin haberlo cargado", title = "Error")
