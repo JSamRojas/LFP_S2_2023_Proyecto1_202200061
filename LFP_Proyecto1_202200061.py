@@ -480,7 +480,7 @@ def Errores_entre_Lexemas(char):
         
         return 0
     
-    elif ord(char) == 58 or ord(char) == 44 or ord(char) == 91 or ord(char) == 93 or ord(char) == 123 or ord(char) == 125:
+    elif ord(char) == 58 or ord(char) == 44 or ord(char) == 91 or ord(char) == 93 or ord(char) == 123 or ord(char) == 125 or char == " ":
         
         return 1
     
